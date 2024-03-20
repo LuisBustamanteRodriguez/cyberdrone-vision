@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 from ultralytics import YOLO
 
+
 class ObjectDetector:
     def __init__(self):
         self.model = YOLO("yolov8l.pt")
@@ -19,6 +20,7 @@ class AirSimWrapper:
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
         self.object_detector = ObjectDetector()
+        self.last_darkest_pixels = None  # Guardar referencia de los píxeles más oscuros
 
     def takeoff(self):
         self.client.takeoffAsync().join()
@@ -53,62 +55,67 @@ class AirSimWrapper:
         yaw = airsim.to_eularian_angles(orientation_quat)[2]
         return yaw
 
-    def get_position(self, object_name):
-        query_string = object_name + ".*"
-        object_names_ue = []
-        while len(object_names_ue) == 0:
-            object_names_ue = self.client.simListSceneObjects(query_string)
-        pose = self.client.simGetObjectPose(object_names_ue[0])
-        return [pose.position.x_val, pose.position.y_val, pose.position.z_val]
+    def get_drone_position(self, darkest_pixels_position):
+        pose = self.client.simGetVehiclePose()
+        drone_position = np.array([pose.position.x_val, pose.position.y_val, pose.position.z_val])
+        drone_position = np.tile(drone_position, (darkest_pixels_position.shape[0], 1))  # Expandir para que tenga la misma forma que darkest_pixels_position
+        return drone_position[:, :2]  # Ajustar la forma de drone_position para que coincida con darkest_pixels_position
+
+
+    def process_image(self, image):
+        # Convertir la imagen a escala de grises
+        gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        # Encontrar los píxeles más oscuros
+        darkest_pixel_value = np.min(gray_image)
+        darkest_pixels = np.where(gray_image == darkest_pixel_value)
+        
+        # Convertir coordenadas de píxeles a formato adecuado
+        darkest_pixels_position = np.column_stack((darkest_pixels[0], darkest_pixels[1]))
+        print("Darkest pixels position shape:", darkest_pixels_position.shape)
+        
+        # Obtener la posición relativa de los píxeles más oscuros respecto al dron
+        drone_position = self.get_drone_position(darkest_pixels_position)  # Pasar darkest_pixels_position como argumento
+        relative_position = darkest_pixels_position - drone_position
+
+        # Tomar acciones para evitar colisiones basadas en la posición relativa de los píxeles más oscuros
+        self.avoid_collision(relative_position, drone_position)  # Pasar drone_position como argumento
+
+        # Realizar detección de objetos utilizando YOLOv8l
+        results = self.object_detector.detect_objects(image)
+
+
+    def avoid_collision(self, relative_position, drone_position):
+        print("Relative position shape:", relative_position.shape)
+
+        # Supongamos que si hay píxeles oscuros en la parte superior de la imagen, el dron debería subir
+        if np.any(relative_position[:, 1] < 0):
+            print("Píxeles oscuros detectados arriba, subiendo...")
+            self.client.moveByVelocityAsync(0, 0, -1, 1).join()  # Hacer que el dron suba
+
+        # Supongamos que si hay píxeles oscuros en la parte inferior de la imagen, el dron debería bajar
+        elif np.any(relative_position[:, 1] > 0):
+            print("Píxeles oscuros detectados abajo, bajando...")
+            self.client.moveByVelocityAsync(0, 0, 1, 1).join()  # Hacer que el dron baje
+
+        # Supongamos que si hay píxeles oscuros en la parte izquierda de la imagen, el dron debería moverse a la izquierda
+        if np.any(relative_position[:, 0] < 0):
+            print("Píxeles oscuros detectados a la izquierda, moviéndose a la izquierda...")
+            self.client.moveByVelocityAsync(-1, 0, 0, 1).join()  # Hacer que el dron se mueva a la izquierda
+
+        # Supongamos que si hay píxeles oscuros en la parte derecha de la imagen, el dron debería moverse a la derecha
+        elif np.any(relative_position[:, 0] > 0):
+            print("Píxeles oscuros detectados a la derecha, moviéndose a la derecha...")
+            self.client.moveByVelocityAsync(1, 0, 0, 1).join()  # Hacer que el dron se mueva a la derecha
 
     def perform_object_detection(self):
         responses = self.client.simGetImages([airsim.ImageRequest(0, airsim.ImageType.Scene, False, False)])
         response = responses[0]
         img1d = np.fromstring(response.image_data_uint8, dtype=np.uint8)
         img_rgb = img1d.reshape(response.height, response.width, 3)
+
         image = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2RGB)
-        results = self.object_detector.detect_objects(image)
-
-        if results:
-            class_names = self.object_detector.model.names  # Obtener los nombres de las clases del modelo
-            if not class_names:
-                print("Error: No se pudieron cargar los nombres de las clases.")
-                return
-
-            for detection in results[0]:
-                box = detection[:4] if len(detection) >= 4 else [0, 0, 0, 0]
-                conf = detection[4] if len(detection) >= 5 else 0
-                cls = int(detection[5]) if len(detection) >= 6 else -1
-            
-                if 0 <= cls < len(class_names):
-                    label = f"{class_names[int(cls)]}: {conf:.2f}"
-                else:
-                    print(f"Índice de Clase no válido: {cls}")  # Depuración
-                    label = f"Objeto Desconocido: {conf:.2f}"
-
-            x1, y1, x2, y2 = [int(coord) for coord in box]
-
-            object_center_x = (x1 + x2) / 2
-            image_center_x = image.shape[1] / 2
-            distance_factor = 100  # Ajusta este valor según la escala y la distancia focal de tu cámara
-
-            # Calcula la posición relativa del objeto
-            if object_center_x < image_center_x - 50:
-                position = "izquierda"
-            elif object_center_x > image_center_x + 50:
-                position = "derecha"
-            else:
-                position = "centro"
-
-            # Calcula la distancia estimada basada en el tamaño del objeto en la imagen
-            object_width = x2 - x1
-            object_height = y2 - y1
-            object_size = max(object_width, object_height)
-            estimated_distance = distance_factor / object_size if object_size > 0 else float('inf')
-
-            print(f"{label} - Posición: {position}, Distancia estimada: {estimated_distance:.2f} metros")
-        else:
-            print("No se detectaron objetos en la imagen.")
+        self.process_image(image)
 
 if __name__ == "__main__":
     airsim_wrapper = AirSimWrapper()
