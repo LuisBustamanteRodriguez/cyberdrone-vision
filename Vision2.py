@@ -9,7 +9,7 @@ import json
 import time
 from openai import OpenAI
 
-client = openai.OpenAI(api_key='API-KEY')
+client = openai.OpenAI(api_key='API_KEY')
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--prompt", type=str, default="prompts/airsim_basic.txt")
@@ -108,6 +108,14 @@ while True:
         os.system("cls")
         continue
 
+    # Realizar detección de objetos antes de procesar la pregunta del usuario
+    print("Realizando detección de objetos...")
+    try:
+        aw.perform_object_detection()  # Realizar detección de objetos en AirSim
+        print("Detección de objetos completada.")
+    except Exception as e:
+        print(f"Error durante la detección de objetos: {e}")
+
     response = ask(question)
 
     print(f"\n{response}\n")
@@ -118,10 +126,12 @@ while True:
         exec(extract_python_code(response))
         print("Done!\n")
 
-    # Realización de detección de objetos en AirSim utilizando la cámara del dron
-    print("Realizando detección de objetos...")
-    try:
-        aw.perform_object_detection()  # Método para realizar detección de objetos en AirSim
-        print("Detección de objetos completada.")
-    except Exception as e:
-        print(f"Error durante la detección de objetos: {e}")
+    # Mover el dron a la siguiente posición después de cada interacción
+    print("Moviendo el dron a la siguiente posición...")
+    
+    if "new_coords" in locals():
+        aw.move_to_next_position(new_coords)  # Proporciona la posición objetivo a la función
+        print("El dron se ha movido a la siguiente posición.")
+    else:
+        print("No se proporcionó una posición objetivo.")
+
