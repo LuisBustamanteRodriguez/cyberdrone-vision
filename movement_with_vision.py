@@ -173,6 +173,8 @@ def move_drone(value, coordinates):
     elif value == 'Abajo':
         movement_down(coordinates)
 
+'''///////////////////////////////////////////////////////////////////////////////////////////////////////////'''
+
 def movement_left(coordinates):
     movement = False
     # get the current yaw of the drone
@@ -194,14 +196,15 @@ def movement_left(coordinates):
         value = response['choices'][0]['message']['content']
 
         # move_drone(value, coordinates)
-        if value == 'No moverse.':
+
+        # if value == 'No moverse.':
+        #     movement_forward(coordinates)
+        if value == 'Izquierda':
             movement_forward(coordinates)
-        elif value == 'Izquierda':
-            movement_left(coordinates)
         elif value == 'Derecha':
-            movement_right(coordinates)
-        elif value == 'Adelante':
             movement_backward(coordinates)
+        # elif value == 'Adelante':
+        #     movement_backward(coordinates)
         elif value == 'Arriba':
             movement_up(coordinates)
         elif value == 'Abajo':
@@ -231,14 +234,15 @@ def movement_right(coordinates):
         value = response['choices'][0]['message']['content']
 
         # move_drone(value, coordinates)
-        if value == 'No moverse.':
+        
+        # if value == 'No moverse.':
+        #     movement_forward(coordinates)
+        if value == 'Izquierda':
             movement_forward(coordinates)
-        elif value == 'Izquierda':
-            movement_left(coordinates)
         elif value == 'Derecha':
-            movement_right(coordinates)
-        elif value == 'Adelante':
             movement_backward(coordinates)
+        # elif value == 'Adelante':
+        #     movement_backward(coordinates)
         elif value == 'Arriba':
             movement_up(coordinates)
         elif value == 'Abajo':
@@ -269,14 +273,15 @@ def movement_forward(coordinates):
         value = response['choices'][0]['message']['content']
 
         # move_drone(value, coordinates)
-        if value == 'No moverse.':
-            movement_forward(coordinates)
-        elif value == 'Izquierda':
+        
+        # if value == 'No moverse.':
+        #     movement_forward(coordinates)
+        if value == 'Izquierda':
             movement_left(coordinates)
         elif value == 'Derecha':
             movement_right(coordinates)
-        elif value == 'Adelante':
-            movement_backward(coordinates)
+        # elif value == 'Adelante':
+        #     movement_backward(coordinates)
         elif value == 'Arriba':
             movement_up(coordinates)
         elif value == 'Abajo':
@@ -305,14 +310,15 @@ def movement_backward(coordinates):
         value = response['choices'][0]['message']['content']
 
         # move_drone(value, coordinates)
-        if value == 'No moverse.':
-            movement_forward(coordinates)
-        elif value == 'Izquierda':
-            movement_left(coordinates)
-        elif value == 'Derecha':
+        
+        # if value == 'No moverse.':
+        #     movement_forward(coordinates)
+        if value == 'Izquierda':
             movement_right(coordinates)
-        elif value == 'Adelante':
-            movement_backward(coordinates)
+        elif value == 'Derecha':
+            movement_left(coordinates)
+        # elif value == 'Adelante':
+        #     movement_backward(coordinates)
         elif value == 'Arriba':
             movement_up(coordinates)
         elif value == 'Abajo':
@@ -332,8 +338,19 @@ def movement_up(coordinates):
     print('respuesta de vision 1', response['choices'][0]['message']['content'])
     value = response['choices'][0]['message']['content']
 
-    move_drone(value, coordinates)
-
+    # move_drone(value, coordinates)
+    if value == 'No moverse.':
+        movement_forward(coordinates)
+    elif value == 'Izquierda':
+        movement_left(coordinates)
+    elif value == 'Derecha':
+        movement_right(coordinates)
+    # elif value == 'Adelante':
+    #     movement_backward(coordinates)
+    elif value == 'Arriba':
+        movement_up(coordinates)
+    elif value == 'Abajo':
+        movement_down(coordinates)
 
 def movement_down(coordinates):
     movement = False
@@ -355,15 +372,15 @@ def movement_down(coordinates):
         movement_left(coordinates)
     elif value == 'Derecha':
         movement_right(coordinates)
-    elif value == 'Adelante':
-        movement_backward(coordinates)
+    # elif value == 'Adelante':
+    #     movement_backward(coordinates)
     elif value == 'Arriba':
         movement_up(coordinates)
     elif value == 'Abajo':
         movement_down(coordinates)
 
 '''
-//////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////
 '''
 print(f"Done.")
 
@@ -419,12 +436,9 @@ while True:
         
     # Coordenadas especificadas inicialmente
     specified_coordinates = [5, 5, 2]
-
-    # aw.fly_to(specified_coordinates)
     
     # Coordenadas iniciales
     coordinates = [0, 0, 2]
-
 
     # Bucle while para iterar hasta que todas las coordenadas sean iguales o superiores a specified_coordinates
     while coordinates[0] < specified_coordinates[0] or coordinates[1] < specified_coordinates[1] or coordinates[2] < specified_coordinates[2]:
@@ -443,24 +457,11 @@ while True:
         elif value == 'Derecha':
              movement_right(coordinates)
 
-        elif value == 'Adelante':
-            movement_backward(coordinates)
-
         elif value == 'Arriba':
             movement_up(coordinates)
         
         elif value == 'Abajo':
             movement_down(coordinates)
-
-        # Imprimir las coordenadas antes de cada iteración
-        print(coordinates)
-            
-            
- 
-        
-       
-           
-
 
         # Imprimir las coordenadas después de cada iteración
         print(coordinates)
