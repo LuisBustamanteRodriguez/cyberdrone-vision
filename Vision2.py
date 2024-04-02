@@ -12,6 +12,7 @@ from PIL import Image
 import airsim
 import io
 from airsim_wrapper import *
+import json
 
 # Clave de la API de OpenAI
 client = openai.OpenAI(api_key='api_key')
@@ -105,6 +106,8 @@ def visionTest():
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
     print(response.json())
+
+    return response.json()
 
 
 # =============== CHAT GPT ===================
@@ -230,13 +233,17 @@ while True:
 
     # Bucle while para iterar hasta que todas las coordenadas sean iguales o superiores a specified_coordinates
     while coordinates[0] < specified_coordinates[0] or coordinates[1] < specified_coordinates[1] or coordinates[2] < specified_coordinates[2]:
+        
         if coordinates[0] != specified_coordinates[0]: # x
             coordinates[0] += 1
 
             aw.fly_to(coordinates)
             print('aw.fly_to(coordinates)')
             print(coordinates)
-            visionTest()
+            response = visionTest()
+
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            
             time.sleep(15)
             
             # # Convertir las coordenadas especificadas a cadenas
@@ -261,7 +268,10 @@ while True:
             aw.fly_to(coordinates)
             print('aw.fly_to(coordinates)')
             print(coordinates)
-            visionTest()
+            response = visionTest()
+            
+            print('respuesta de vision 2', response['choices'][0]['message']['content'])
+            
             time.sleep(15)
 
             # # Convertir las coordenadas especificadas a cadenas
@@ -286,7 +296,10 @@ while True:
             aw.fly_to(coordinates)
             print('aw.fly_to(coordinates)')
             print(coordinates)
-            visionTest()
+            response = visionTest()
+
+            print('respuesta de vision 3', response['choices'][0]['message']['content'])
+
             time.sleep(15)
 
             # # Convertir las coordenadas especificadas a cadenas
