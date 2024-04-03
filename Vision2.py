@@ -34,10 +34,6 @@ chat_history = [
         "role": "user",
         "content": "move 10 units up"
     },
-    {
-        "role": "user",
-        "content": "Avoid collisions with objects with the help of gpt-4-vision-preview "
-    },
     
     {
         "role": "assistant",
@@ -59,11 +55,14 @@ def ask(prompt):
             "content": prompt,
         }
     )
+    start_time_chat = time.time()
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=chat_history,
         temperature=0
     )
+    end_time_chat = time.time()
+    print("Tiempo para solicitar chat:", end_time_chat - start_time_chat, "segundos")
     chat_history.append(
         {
             "role": "assistant",
@@ -108,14 +107,6 @@ while True:
         os.system("cls")
         continue
 
-    # Realizar detección de objetos antes de procesar la pregunta del usuario
-    print("Realizando detección de objetos...")
-    try:
-        aw.perform_object_detection()  # Realizar detección de objetos en AirSim
-        print("Detección de objetos completada.")
-    except Exception as e:
-        print(f"Error durante la detección de objetos: {e}")
-
     response = ask(question)
 
     print(f"\n{response}\n")
@@ -126,12 +117,24 @@ while True:
         exec(extract_python_code(response))
         print("Done!\n")
 
-    # Mover el dron a la siguiente posición después de cada interacción
-    print("Moviendo el dron a la siguiente posición...")
-    
-    if "new_coords" in locals():
-        aw.move_to_next_position(new_coords)  # Proporciona la posición objetivo a la función
-        print("El dron se ha movido a la siguiente posición.")
-    else:
-        print("No se proporcionó una posición objetivo.")
+    print("Realizando detección de objetos...")
+    try:
+        aw.perform_object_detection()
+        print("Detección de objetos completada.")
+    except Exception as e:
+        print(f"Error durante la detección de objetos: {e}")
 
+    print("Moviendo el dron a las coordenadas proporcionadas por el chatbot...")
+
+    # Parsear las coordenadas del mensaje de respuesta
+    match = re.search(r"\[(\d+),\s*(\d+),\s*(\d+)\]", response)
+    if match:
+        x, y, z = map(int, match.groups())
+        new_coords = [x, y, z]
+        start_time_movement = time.time()
+        aw.fly_to(new_coords)
+        end_time_movement = time.time()
+        print("Tiempo de movimiento del dron:", end_time_movement - start_time_movement, "segundos")
+        print("El dron se ha movido a las coordenadas proporcionadas por el chatbot.")
+    else:
+        print("No se proporcionaron coordenadas válidas.")
