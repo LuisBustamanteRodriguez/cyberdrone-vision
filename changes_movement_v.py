@@ -90,7 +90,19 @@ def visionTest():
                 "content": [
                     {
                         "type": "text",
-                        "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? -solo puedes responder con no moverse o si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que no choques"
+                        "text": "tu concentrate en el centro de la imagen si no vez nada delante de ti en el centro responde con no moverse. Si vez algo enfrente tuyo responde hacia que lado es mejor girar -solo puedes responder con arriba, abajo, izquierda, derecha para que no choques"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}"
+                        }
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}"
+                        }
                     },
                     {
                         "type": "image_url",
