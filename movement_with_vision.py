@@ -163,13 +163,13 @@ def ask(prompt):
 
 def move_drone(value, coordinates):
     if value == 'No moverse.':
-        movement_forward(coordinates)
+        movement_north(coordinates)
     elif value == 'Izquierda':
-        movement_left(coordinates)
+        movement_west(coordinates)
     elif value == 'Derecha':
-        movement_right(coordinates)
+        movement_east(coordinates)
     elif value == 'Adelante':
-        movement_backward(coordinates)
+        movement_south(coordinates)
     elif value == 'Arriba':
         movement_up(coordinates)
     elif value == 'Abajo':
@@ -177,85 +177,7 @@ def move_drone(value, coordinates):
 
 '''///////////////////////////////////////////////////////////////////////////////////////////////////////////'''
 
-def movement_left(coordinates):
-    start_time = time.time()
-    movement = False
-    # get the current yaw of the drone
-    current_yaw = aw.get_yaw()
-
-    # set the yaw to current_yaw - 90 degrees (turn 90 degrees to the left)
-    new_yaw = current_yaw - 90
-    aw.set_yaw(new_yaw)
-    print('girando hacia la izquierda')
-
-    while movement == False:
-
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
-        # calcular tiempo de ejecución
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Tiempo de ejecución de movement_left: {execution_time} segundos")
-
-        if value == 'Izquierda':
-            movement_forward(coordinates)
-        elif value == 'Derecha':
-            movement_backward(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
-        
-        coordinates[1] -= 3
-
-        aw.fly_to(coordinates)
-        print("Nuevas coordenadas:", coordinates)
-
-
-def movement_right(coordinates):
-    start_time = time.time()
-    movement = False
-    # get the current yaw of the drone
-    current_yaw = aw.get_yaw()
-
-    # set the yaw to current_yaw + 90 degrees (turn 90 degrees to the right)
-    new_yaw = current_yaw + 90
-    aw.set_yaw(new_yaw)
-    print('girando hacia la derecha')
-
-    while movement == False:
-
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
-        # calcular tiempo de ejecución
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Tiempo de ejecución de movement_right: {execution_time} segundos")
-
-        
-        if value == 'Izquierda':
-            movement_forward(coordinates)
-        elif value == 'Derecha':
-            movement_backward(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
-        
-        coordinates[1] += 3
-
-        aw.fly_to(coordinates)
-
-        print("Nuevas coordenadas:", coordinates)
-
-
-       
-        
-
-
-def movement_forward(coordinates):
+def movement_north(coordinates):
     start_time = time.time()
     movement = False
     # get the current position of the drone
@@ -278,9 +200,9 @@ def movement_forward(coordinates):
         
 
         if value == 'Izquierda':
-            movement_left(coordinates)
+            movement_north_west(coordinates)
         elif value == 'Derecha':
-            movement_right(coordinates)
+            movement_northeast(coordinates)
         elif value == 'Arriba':
             movement_up(coordinates)
         elif value == 'Abajo':
@@ -292,8 +214,141 @@ def movement_forward(coordinates):
 
         print("Nuevas coordenadas:", coordinates)
     
-def movement_backward(coordinates):
+
+def movement_north_west(coordinates):
     start_time = time.time()
+    movement = False
+    # get the current yaw of the drone
+    current_yaw = aw.get_yaw()
+
+    # set the yaw to current_yaw - 45 degrees (turn 45 degrees to the left)
+    new_yaw = current_yaw - 45
+    aw.set_yaw(new_yaw)
+    print('girando hacia el noroeste')
+
+    while movement == False:
+        response = visionTest()
+        print('respuesta de vision 1', response['choices'][0]['message']['content'])
+        value = response['choices'][0]['message']['content']
+
+        if value == 'Izquierda':
+            movement_west(coordinates)
+        elif value == 'Derecha':
+            movement_north(coordinates)
+        elif value == 'Arriba':
+            movement_up(coordinates)
+        elif value == 'Abajo':
+            movement_down(coordinates)
+        
+        coordinates[0] += 3
+        coordinates[1] += 3
+
+        aw.fly_to(coordinates)
+        print("Nuevas coordenadas:", coordinates)
+
+
+def movement_northeast(coordinates):
+    movement = False
+    # get the current yaw of the drone
+    current_yaw = aw.get_yaw()
+
+    # set the yaw to current_yaw - 45 degrees (turn 45 degrees to the left)
+    new_yaw = current_yaw + 45
+    aw.set_yaw(new_yaw)
+    print('girando hacia el noreste')
+
+    while movement == False:
+        response = visionTest()
+        print('respuesta de vision 1', response['choices'][0]['message']['content'])
+        value = response['choices'][0]['message']['content']
+
+        if value == 'Izquierda':
+            movement_north(coordinates)
+        elif value == 'Derecha':
+            movement_east(coordinates)
+        elif value == 'Arriba':
+            movement_up(coordinates)
+        elif value == 'Abajo':
+            movement_down(coordinates)
+        
+        coordinates[0] += 3
+        coordinates[1] -= 3
+
+        aw.fly_to(coordinates)
+        print("Nuevas coordenadas:", coordinates)
+
+
+def movement_west(coordinates):
+    movement = False
+    # get the current yaw of the drone
+    current_yaw = aw.get_yaw()
+
+    # set the yaw to current_yaw - 90 degrees (turn 90 degrees to the left)
+    new_yaw = current_yaw - 90
+    aw.set_yaw(new_yaw)
+    print('girando hacia la izquierda')
+
+    while movement == False:
+
+        response = visionTest()
+        print('respuesta de vision 1', response['choices'][0]['message']['content'])
+        value = response['choices'][0]['message']['content']
+        
+        if value == 'Izquierda':
+            movement_north_west(coordinates)
+        elif value == 'Derecha':
+            movement_southwest(coordinates)
+        elif value == 'Arriba':
+            movement_up(coordinates)
+        elif value == 'Abajo':
+            movement_down(coordinates)
+        
+        coordinates[1] -= 3
+
+        aw.fly_to(coordinates)
+        print("Nuevas coordenadas:", coordinates)
+
+
+def movement_east(coordinates):
+    start_time = time.time()
+    movement = False
+    # get the current yaw of the drone
+    current_yaw = aw.get_yaw()
+
+    # set the yaw to current_yaw + 90 degrees (turn 90 degrees to the right)
+    new_yaw = current_yaw + 90
+    aw.set_yaw(new_yaw)
+    print('girando hacia la derecha')
+
+    while movement == False:
+
+        response = visionTest()
+        print('respuesta de vision 1', response['choices'][0]['message']['content'])
+        value = response['choices'][0]['message']['content']
+        # calcular tiempo de ejecución
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Tiempo de ejecución de movement_right: {execution_time} segundos")
+
+        
+        if value == 'Izquierda':
+            movement_northeast(coordinates)
+        elif value == 'Derecha':
+            movement_southeast(coordinates)
+        elif value == 'Arriba':
+            movement_up(coordinates)
+        elif value == 'Abajo':
+            movement_down(coordinates)
+        
+        coordinates[1] += 3
+
+        aw.fly_to(coordinates)
+
+        print("Nuevas coordenadas:", coordinates)
+
+
+
+def movement_south(coordinates):
     movement = False
     # get the current position of the drone
     current_yaw = aw.get_yaw()
@@ -308,16 +363,11 @@ def movement_backward(coordinates):
         response = visionTest()
         print('respuesta de vision 1', response['choices'][0]['message']['content'])
         value = response['choices'][0]['message']['content']
-        # calcular tiempo de ejecución
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Tiempo de ejecución de movement_backward: {execution_time} segundos")
-
 
         if value == 'Izquierda':
-            movement_right(coordinates)
+            movement_southeast(coordinates)
         elif value == 'Derecha':
-            movement_left(coordinates)
+            movement_southwest(coordinates)
         elif value == 'Arriba':
             movement_up(coordinates)
         elif value == 'Abajo':
@@ -327,9 +377,71 @@ def movement_backward(coordinates):
 
         aw.fly_to(coordinates)
         print("Nuevas coordenadas:", coordinates)
-        
+
+
+def movement_southwest(coordinates):
+    movement = False
+    # get the current position of the drone
+    current_yaw = aw.get_yaw()
+
+    new_yaw = current_yaw - 135
+    aw.set_yaw(new_yaw)
+    print('girando hacia el suroeste')
+
+    while movement == False:
+
+        response = visionTest()
+        print('respuesta de vision 1', response['choices'][0]['message']['content'])
+        value = response['choices'][0]['message']['content']
+
+        if value == 'Izquierda':
+            movement_south(coordinates)
+        elif value == 'Derecha':
+            movement_west(coordinates)
+        elif value == 'Arriba':
+            movement_up(coordinates)
+        elif value == 'Abajo':
+            movement_down(coordinates)
+
+        coordinates[0] -= 3
+        coordinates[1] -= 3
+
+        aw.fly_to(coordinates)
+        print("Nuevas coordenadas:", coordinates)
+
+
+def movement_southeast(coordinates):
+    movement = False
+    # get the current position of the drone
+    current_yaw = aw.get_yaw()
+
+    new_yaw = current_yaw + 135
+    aw.set_yaw(new_yaw)
+    print('girando hacia el sureste')
+
+    while movement == False:
+
+        response = visionTest()
+        print('respuesta de vision 1', response['choices'][0]['message']['content'])
+        value = response['choices'][0]['message']['content']
+
+        if value == 'Izquierda':
+            movement_east(coordinates)
+        elif value == 'Derecha':
+            movement_south(coordinates)
+        elif value == 'Arriba':
+            movement_up(coordinates)
+        elif value == 'Abajo':
+            movement_down(coordinates)
+
+        coordinates[0] -= 3
+        coordinates[1] += 3
+
+        aw.fly_to(coordinates)
+        print("Nuevas coordenadas:", coordinates)
+
+
 def movement_up(coordinates):
-    start_time = time.time()
     movement = False
         
     coordinates[2] += 3
@@ -341,21 +453,18 @@ def movement_up(coordinates):
     response = visionTest()
     print('respuesta de vision 1', response['choices'][0]['message']['content'])
     value = response['choices'][0]['message']['content']
-    # calcular tiempo de ejecución
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print(f"Tiempo de ejecución de movement_up: {execution_time} segundos")
 
     if value == 'No moverse.':
-        movement_forward(coordinates)
+        movement_north(coordinates)
     elif value == 'Izquierda':
-        movement_left(coordinates)
+        movement_west(coordinates)
     elif value == 'Derecha':
-        movement_right(coordinates)
+        movement_east(coordinates)
     elif value == 'Arriba':
         movement_up(coordinates)
     elif value == 'Abajo':
         movement_down(coordinates)
+
 
 def movement_down(coordinates):
     start_time = time.time()
@@ -370,17 +479,13 @@ def movement_down(coordinates):
     response = visionTest()
     print('respuesta de vision 1', response['choices'][0]['message']['content'])
     value = response['choices'][0]['message']['content']
-    # calcular tiempo de ejecución
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print(f"Tiempo de ejecución de movement_down: {execution_time} segundos")
 
     if value == 'No moverse.':
-        movement_forward(coordinates)
+        movement_north(coordinates)
     elif value == 'Izquierda':
-        movement_left(coordinates)
+        movement_west(coordinates)
     elif value == 'Derecha':
-        movement_right(coordinates)
+        movement_east(coordinates)
     elif value == 'Arriba':
         movement_up(coordinates)
     elif value == 'Abajo':
@@ -389,6 +494,7 @@ def movement_down(coordinates):
 '''
 /////////////////////////////////////////////////////////////
 '''
+
 print(f"Done.")
 
 code_block_regex = re.compile(r"```(.*?)```", re.DOTALL)
@@ -456,13 +562,13 @@ while True:
         value = response['choices'][0]['message']['content']
         
         if value == 'No moverse.':
-            movement_forward(coordinates)
+            movement_north(coordinates)
 
         elif value == 'Izquierda':
-            movement_left(coordinates)
+            movement_north_west(coordinates)
 
         elif value == 'Derecha':
-             movement_right(coordinates)
+             movement_northeast(coordinates)
 
         elif value == 'Arriba':
             movement_up(coordinates)
@@ -473,5 +579,3 @@ while True:
         # Imprimir las coordenadas después de cada iteración
         print(coordinates)
 
-    # Imprimir las coordenadas finales
-    print("Las coordenadas finales son:", coordinates)
