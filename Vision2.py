@@ -1,16 +1,17 @@
 import openai
+from openai import OpenAI
 import re
 import argparse
-from airsim_wrapper import *
-import math
-import numpy as np
 import os
 import json
-import time
-from openai import OpenAI
+import airsim
+from airsim_wrapper import *
 
-client = openai.OpenAI(api_key='API_KEY')
 
+# Inicialización de la API de OpenAI
+client = OpenAI(api_key='API-KEY')
+
+# Análisis de los argumentos de línea de comandos
 parser = argparse.ArgumentParser()
 parser.add_argument("--prompt", type=str, default="prompts/airsim_basic.txt")
 parser.add_argument("--sysprompt", type=str, default="system_prompts/airsim_basic.txt")
@@ -25,6 +26,17 @@ openai.api_key = config["OPENAI_API_KEY"]
 with open(args.sysprompt, "r") as f:
     sysprompt = f.read()
 
+# Establecimiento de la clave de la API de OpenAI
+OpenAI.api_key = config["OPENAI_API_KEY"]
+
+client = airsim.MultirotorClient()
+
+
+# Lectura del prompt de sistema desde un archivo de texto
+with open(args.sysprompt, "r") as f:
+    sysprompt = f.read()
+
+# Historial del chat para mantener el seguimiento de la conversación
 chat_history = [
     {
         "role": "system",
@@ -48,6 +60,8 @@ chat_history = [
     }
 ]
 
+# Función para enviar una solicitud al chatbot y recibir una respuesta
+
 def ask(prompt):
     chat_history.append(
         {
@@ -55,14 +69,11 @@ def ask(prompt):
             "content": prompt,
         }
     )
-    start_time_chat = time.time()
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+    completion = openai.chat.completions.create(
+        model="gpt-4-vision-preview",
         messages=chat_history,
         temperature=0
     )
-    end_time_chat = time.time()
-    print("Tiempo para solicitar chat:", end_time_chat - start_time_chat, "segundos")
     chat_history.append(
         {
             "role": "assistant",
@@ -71,12 +82,14 @@ def ask(prompt):
     )
     return chat_history[-1]["content"]
 
+
 print(f"Done.")
 
 code_block_regex = re.compile(r"```(.*?)```", re.DOTALL)
 
+# Función para extraer código Python de un mensaje de respuesta del chatbot
 def extract_python_code(content):
-    code_blocks = code_block_regex.findall(content)
+    code_blocks = re.findall(r"```(.*?)```", content, re.DOTALL)
     if code_blocks:
         full_code = "\n".join(code_blocks)
 
@@ -87,16 +100,21 @@ def extract_python_code(content):
     else:
         return None
 
-print(f"Initializing AirSim...")
+print("Initializing AirSim...")
 aw = AirSimWrapper()
+detector = ObjectDetector()
+
 print(f"Done.")
 
+# Lectura del prompt inicial para el chatbot desde un archivo de texto
 with open(args.prompt, "r") as f:
     prompt = f.read()
 
+# Inicio de la conversación con el chatbot
 ask(prompt)
 print("Welcome to the AirSim chatbot! I am ready to help you with your AirSim questions and commands.")
 
+# Bucle principal para interactuar con el chatbot
 while True:
     question = input("AirSim> ")
 
@@ -107,34 +125,22 @@ while True:
         os.system("cls")
         continue
 
+    # Envío de la pregunta al chatbot y recepción de la respuesta
     response = ask(question)
 
     print(f"\n{response}\n")
 
+    # Extracción y ejecución de código Python de la respuesta del chatbot
     code = extract_python_code(response)
     if code is not None:
         print("Please wait while I run the code in AirSim...")
+
         exec(extract_python_code(response))
+
+        closest_object_distance = aw.process_depth_image()
+
+        print("Distancia al objeto más cercano:", closest_object_distance, "metros")
+
         print("Done!\n")
 
-    print("Realizando detección de objetos...")
-    try:
-        aw.perform_object_detection()
-        print("Detección de objetos completada.")
-    except Exception as e:
-        print(f"Error durante la detección de objetos: {e}")
-
-    print("Moviendo el dron a las coordenadas proporcionadas por el chatbot...")
-
-    # Parsear las coordenadas del mensaje de respuesta
-    match = re.search(r"\[(\d+),\s*(\d+),\s*(\d+)\]", response)
-    if match:
-        x, y, z = map(int, match.groups())
-        new_coords = [x, y, z]
-        start_time_movement = time.time()
-        aw.fly_to(new_coords)
-        end_time_movement = time.time()
-        print("Tiempo de movimiento del dron:", end_time_movement - start_time_movement, "segundos")
-        print("El dron se ha movido a las coordenadas proporcionadas por el chatbot.")
-    else:
-        print("No se proporcionaron coordenadas válidas.")
+     
