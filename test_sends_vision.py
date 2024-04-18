@@ -46,25 +46,29 @@ content_system = 'Eres un piloto de un dron te enviare diferentes imagenes y deb
    # primero append el promt
     # segunda append imagen
     # tercer el promt
-conversation = [
-    {"role": "system", "content": content_system},
-    {"role": "user", "content": [
-            {
-                "type": "text",
-                "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? -solo puedes responder con no moverse o si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que no choques"
-            },
-        ]
-    }
-]
+# conversation = [
+#     {"role": "system", "content": content_system},
+#     {"role": "user", "content": [
+#             {
+#                 "type": "text",
+#                 "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? -solo puedes responder con no moverse o si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que no choques"
+#             },
+#         ]
+#     }
+# ]
+
+conversation = []
+
+history = []
 
 # Establecer conexión con el cliente de AirSim una vez
-client = airsim.MultirotorClient()
-client.confirmConnection()
+conection = airsim.MultirotorClient()
+conection.confirmConnection()
 
 # Función para capturar una imagen desde AirSim
 def capture_image_from_airsim():
     # Capturar una imagen utilizando la cámara frontal
-    responses = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)])
+    responses = conection.simGetImages([airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)])
 
     # Extract image
     img1d = np.frombuffer(responses[0].image_data_uint8, dtype=np.uint8)
@@ -85,7 +89,7 @@ def capture_image_from_airsim():
 
 def capture_image_from_airsim_black_and_white():
     
-    response = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.DepthPerspective, True, False)])
+    response = conection.simGetImages([airsim.ImageRequest("0", airsim.ImageType.DepthPerspective, True, False)])
     image = response[0]
 
     depth_img_in_meters = airsim.list_to_2d_float_array(image.image_data_float, image.width, image.height)
@@ -98,16 +102,71 @@ def capture_image_from_airsim_black_and_white():
     cv2.imwrite("depth_16bit.png", depth_16bit.astype(np.uint16))
 
     # Convert bytes to Pillow Image object
-    image = Image.frombytes("L", (image.width, image.height), image.image_data_uint8)
+    # image = Image.frombytes("L", (image.width, image.height), image.image_data_uint8)
 
     # return image
-
 
 # Función para convertir la imagen de AirSim a un formato compatible con Vision
 def convert_image_for_vision(image):
     image_vision_format = image.convert("RGB")  # RGB es el formato que usa AirSim
     
     return image_vision_format
+
+
+def visionSee():
+    image_from_airsim = capture_image_from_airsim()
+    image_from_airsim_bw = capture_image_from_airsim_black_and_white()
+
+    image_vision_format = convert_image_for_vision(image_from_airsim)
+
+    # Obtener la imagen en base64 desde la imagen convertida png
+    buffer = io.BytesIO()
+    image_vision_format.save(buffer, format="PNG")
+    base64_image = base64.b64encode(buffer.getvalue()).decode()
+
+    # Configuración de los headers para la solicitud a la API de OpenAI
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {client.api_key}"
+    }
+
+    payload = {
+        "model": "gpt-4-vision-preview",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "En la imagen que ves tienes algun objeto cerca de ti? -importante: solo puedes responder con ('si' o 'no')"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 10
+    }
+
+    # # Configuración del payload para la solicitud a la API de OpenAI
+    # payload = {
+    #     "model": "gpt-4-vision-preview",
+    #     "messages": payload,
+    #     "max_tokens": 50
+    # }
+
+    # Realizar la solicitud a la API de OpenAI
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+
+    print(response.json())
+
+    response = response.json()
+
+    return response
 
 
 # Función para enviar una solicitud a la API de OpenAI para pruebas de visión
@@ -132,14 +191,14 @@ def visionTest():
                 "content": [
                     {
                         "type": "text",
-                        "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? -solo puedes responder con no moverse o si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que no choques"
+                        "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que esquivez el obstaculo"
                     },
                     {
                         "type": "image_url",
                         "image_url": {
                             "url": f"data:image/png;base64,{base64_image}"
                         }
-                    }
+                    },
                 ]
             })
 
@@ -161,13 +220,15 @@ def visionTest():
 
     print(response.json())
 
+    response = response.json()
+
     # Guardar la respuesta a la conversacion
     conversation.append({
                 "role": "assistant",
                 "content": response['choices'][0]['message']['content']
             })
 
-    return response.json()
+    return response
 
 
 # =============== CHAT GPT ===================
@@ -235,6 +296,7 @@ def move_drone(value, coordinates):
 
 '''///////////////////////////////////////////////////////////////////////////////////////////////////////////'''
 
+
 def movement_north(coordinates):
     start_time = time.time()
     movement = False
@@ -248,29 +310,34 @@ def movement_north(coordinates):
 
     while movement == False:
 
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
-        # calcular tiempo de ejecución
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Tiempo de ejecución de movement_forward: {execution_time} segundos")
-        
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        if value == 'Izquierda':
-            movement_north_west(coordinates)
-        elif value == 'Derecha':
-            movement_northeast(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
-        
-        coordinates[0] += 3
+        if response == 'No.':
+            coordinates[0] += 3
 
-        aw.fly_to(coordinates)
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
 
-        print("Nuevas coordenadas:", coordinates)
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+            # calcular tiempo de ejecución
+            end_time = time.time()
+            execution_time = end_time - start_time
+            print(f"Tiempo de ejecución de movement_forward: {execution_time} segundos")
+            
+
+            if value == 'Izquierda':
+                movement_north_west(coordinates)
+            elif value == 'Derecha':
+                movement_northeast(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
     
 
 def movement_north_west(coordinates):
@@ -285,24 +352,31 @@ def movement_north_west(coordinates):
     print('girando hacia el noroeste')
 
     while movement == False:
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
 
-        if value == 'Izquierda':
-            movement_west(coordinates)
-        elif value == 'Derecha':
-            movement_north(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
-        
-        coordinates[0] += 3
-        coordinates[1] -= 3
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        aw.fly_to(coordinates)
-        print("Nuevas coordenadas:", coordinates)
+        if response == 'No.':
+            coordinates[0] += 3
+            coordinates[1] -= 3
+
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
+
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+
+            if value == 'Izquierda':
+                movement_west(coordinates)
+            elif value == 'Derecha':
+                movement_north(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
 
 
 def movement_northeast(coordinates):
@@ -316,25 +390,32 @@ def movement_northeast(coordinates):
     print('girando hacia el noreste')
 
     while movement == False:
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
 
-        if value == 'Izquierda':
-            movement_north(coordinates)
-        elif value == 'Derecha':
-            movement_east(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
+
+        if response == 'No.':
+            coordinates[0] += 3
+            coordinates[1] += 3
+
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
+
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+
+            if value == 'Izquierda':
+                movement_north(coordinates)
+            elif value == 'Derecha':
+                movement_east(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
         
-        coordinates[0] += 3
-        coordinates[1] += 3
-
-        aw.fly_to(coordinates)
-        print("Nuevas coordenadas:", coordinates)
-
 
 def movement_west(coordinates):
     movement = False
@@ -348,27 +429,32 @@ def movement_west(coordinates):
 
     while movement == False:
 
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
-        
-        if value == 'Izquierda':
-            movement_north_west(coordinates)
-        elif value == 'Derecha':
-            movement_southwest(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
-        
-        coordinates[1] -= 3
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        aw.fly_to(coordinates)
-        print("Nuevas coordenadas:", coordinates)
+        if response == 'No.':
+            coordinates[1] -= 3
 
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
+
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+            
+            if value == 'Izquierda':
+                movement_north_west(coordinates)
+            elif value == 'Derecha':
+                movement_southwest(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
+        
 
 def movement_east(coordinates):
-    start_time = time.time()
     movement = False
     # get the current yaw of the drone
     current_yaw = aw.get_yaw()
@@ -380,29 +466,29 @@ def movement_east(coordinates):
 
     while movement == False:
 
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
-        # calcular tiempo de ejecución
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Tiempo de ejecución de movement_right: {execution_time} segundos")
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        
-        if value == 'Izquierda':
-            movement_northeast(coordinates)
-        elif value == 'Derecha':
-            movement_southeast(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
-        
-        coordinates[1] += 3
+        if response == 'No.':
+            coordinates[1] += 3
 
-        aw.fly_to(coordinates)
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
 
-        print("Nuevas coordenadas:", coordinates)
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+            
+            if value == 'Izquierda':
+                movement_northeast(coordinates)
+            elif value == 'Derecha':
+                movement_southeast(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
 
 
 
@@ -418,23 +504,29 @@ def movement_south(coordinates):
 
     while movement == False:
 
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        if value == 'Izquierda':
-            movement_southeast(coordinates)
-        elif value == 'Derecha':
-            movement_southwest(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
+        if response == 'No.':
+            coordinates[0] -= 3
 
-        coordinates[0] -= 3
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
 
-        aw.fly_to(coordinates)
-        print("Nuevas coordenadas:", coordinates)
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+
+            if value == 'Izquierda':
+                movement_southeast(coordinates)
+            elif value == 'Derecha':
+                movement_southwest(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
 
 
 def movement_southwest(coordinates):
@@ -448,24 +540,30 @@ def movement_southwest(coordinates):
 
     while movement == False:
 
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        if value == 'Izquierda':
-            movement_south(coordinates)
-        elif value == 'Derecha':
-            movement_west(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
+        if response == 'No.':
+            coordinates[0] -= 3
+            coordinates[1] -= 3
 
-        coordinates[0] -= 3
-        coordinates[1] -= 3
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
 
-        aw.fly_to(coordinates)
-        print("Nuevas coordenadas:", coordinates)
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+
+            if value == 'Izquierda':
+                movement_south(coordinates)
+            elif value == 'Derecha':
+                movement_west(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
 
 
 def movement_southeast(coordinates):
@@ -479,24 +577,31 @@ def movement_southeast(coordinates):
 
     while movement == False:
 
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        if value == 'Izquierda':
-            movement_east(coordinates)
-        elif value == 'Derecha':
-            movement_south(coordinates)
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        elif value == 'Abajo':
-            movement_down(coordinates)
+        if response == 'No.':
+            coordinates[0] -= 3
+            coordinates[1] += 3
 
-        coordinates[0] -= 3
-        coordinates[1] += 3
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
 
-        aw.fly_to(coordinates)
-        print("Nuevas coordenadas:", coordinates)
+        else:
+            response = visionTest()
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+
+            if value == 'Izquierda':
+                movement_east(coordinates)
+            elif value == 'Derecha':
+                movement_south(coordinates)
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            elif value == 'Abajo':
+                movement_down(coordinates)
+
 
 
 def movement_up(coordinates):
@@ -548,6 +653,7 @@ def movement_down(coordinates):
         movement_up(coordinates)
     elif value == 'Abajo':
         movement_down(coordinates)
+
 
 '''
 /////////////////////////////////////////////////////////////
@@ -614,27 +720,36 @@ while True:
     # Bucle while para iterar hasta que todas las coordenadas sean iguales o superiores a specified_coordinates
     while coordinates[0] < specified_coordinates[0] or coordinates[1] < specified_coordinates[1] or coordinates[2] < specified_coordinates[2]:
         
-        response = aw.perform_object_detection()
-        print('Distancia: ', response)
-        
-        response = visionTest()
-        print('respuesta de vision 1', response['choices'][0]['message']['content'])
-        value = response['choices'][0]['message']['content']
-        
-        if value == 'No moverse.':
-            movement_north(coordinates)
+        test = visionSee()
+        print('respuesta de vision 1', test['choices'][0]['message']['content'])
+        response = test['choices'][0]['message']['content']
 
-        elif value == 'Izquierda':
-            movement_north_west(coordinates)
+        if response == 'No.':
+            coordinates[0] += 3
 
-        elif value == 'Derecha':
-             movement_northeast(coordinates)
+            aw.fly_to(coordinates)
+            print("Nuevas coordenadas:", coordinates)
 
-        elif value == 'Arriba':
-            movement_up(coordinates)
-        
-        elif value == 'Abajo':
-            movement_down(coordinates)
+            
+        else:
+            response = visionTest()
+            print('respuesta de vision 2', response['choices'][0]['message']['content'])
+            value = response['choices'][0]['message']['content']
+            
+            if value == 'No moverse.':
+                movement_north(coordinates)
+
+            elif value == 'Izquierda':
+                movement_north_west(coordinates)
+
+            elif value == 'Derecha':
+                movement_northeast(coordinates)
+
+            elif value == 'Arriba':
+                movement_up(coordinates)
+            
+            elif value == 'Abajo':
+                movement_down(coordinates)
 
         # Imprimir las coordenadas después de cada iteración
         print(coordinates)
