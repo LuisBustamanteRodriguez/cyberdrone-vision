@@ -6,7 +6,10 @@ def shortest_path(start, target):
     
     while queue:
         current_pos, path = queue.popleft()
-        if current_pos == target:
+        
+        # Verificar si la posición actual está dentro del radio del objetivo
+        if abs(current_pos[0] - target[0]) <= 1 and abs(current_pos[1] - target[1]) <= 1 and abs(current_pos[2] - target[2]) <= 1:
+            path.append(target)  # Añadir la coordenada objetivo al camino
             return path
         
         if current_pos not in visited:
@@ -17,23 +20,32 @@ def shortest_path(start, target):
             dy = target[1] - current_pos[1]
             dz = target[2] - current_pos[2]
             
-            # Determinar hacia qué dirección movernos
-            if abs(dx) >= max(abs(dy), abs(dz)):  # Movernos en la dirección X
-                next_move = (current_pos[0] + dx // abs(dx), current_pos[1], current_pos[2])
-            elif abs(dy) >= abs(dz):  # Movernos en la dirección Y
-                next_move = (current_pos[0], current_pos[1] + dy // abs(dy), current_pos[2])
-            else:  # Movernos en la dirección Z
-                next_move = (current_pos[0], current_pos[1], current_pos[2] + dz // abs(dz))
+            # Determinar todas las posibles combinaciones de movimientos (incluyendo diagonales)
+            possible_moves = []
+            if dx != 0:
+                possible_moves.append((dx // abs(dx), 0, 0))
+            if dy != 0:
+                possible_moves.append((0, dy // abs(dy), 0))
+            if dz != 0:
+                possible_moves.append((0, 0, dz // abs(dz)))
+            if dx != 0 and dy != 0:
+                possible_moves.append((dx // abs(dx), dy // abs(dy), 0))
+            if dx != 0 and dz != 0:
+                possible_moves.append((dx // abs(dx), 0, dz // abs(dz)))
+            if dy != 0 and dz != 0:
+                possible_moves.append((0, dy // abs(dy), dz // abs(dz)))
             
-            # Agregar el próximo movimiento a la cola
-            queue.append((next_move, path + [next_move]))
+            # Agregar los próximos movimientos a la cola
+            for move in possible_moves:
+                next_move = (current_pos[0] + move[0], current_pos[1] + move[1], current_pos[2] + move[2])
+                queue.append((next_move, path + [next_move]))
 
 
 # Coordenadas especificadas inicialmente
-specified_coordinates = [-10, 15, 2]
+specified_coordinates = [27, 15, 2]
 
 # Coordenadas iniciales
-start_coordinates = [0, 0, 2]
+start_coordinates = [10, 10, 2]
 
 # Convertir las coordenadas especificadas a tupla
 specified_coordinates_tuple = tuple(specified_coordinates)
