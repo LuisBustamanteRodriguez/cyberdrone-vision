@@ -19,8 +19,11 @@ from collections import deque
 
 from dotenv import load_dotenv
 
-# Clave de la API de OpenAI
-client = openai.OpenAI(api_key='api_key')
+# Carga las variables de entorno desde el archivo .env
+load_dotenv()
+
+# Accede a la variable de entorno
+api_key = os.getenv("OPENAI_API_KEY")
 
 # Analizador de argumentos
 parser = argparse.ArgumentParser()
@@ -41,197 +44,11 @@ with open(args.sysprompt, "r") as f:
     sysprompt = f.read()
 
 
-   # =============== VISION ===================
-
-content_system = 'Eres un piloto de un dron te enviare diferentes imagenes y deberas de tomar la mejor decision para no chocar con algun obstaculo'
-
-# Todo el chat que se va a almacenar
-   # primero append el promt
-    # segunda append imagen
-    # tercer el promt
-# conversation = [
-#     {"role": "system", "content": content_system},
-#     {"role": "user", "content": [
-#             {
-#                 "type": "text",
-#                 "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? -solo puedes responder con no moverse o si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que no choques"
-#             },
-#         ]
-#     }
-# ]
-
-conversation = []
-
-history = []
 
 # Establecer conexión con el cliente de AirSim una vez
 conection = airsim.MultirotorClient()
 conection.confirmConnection()
 
-# Función para capturar una imagen desde AirSim
-def capture_image_from_airsim():
-    # Capturar una imagen utilizando la cámara frontal
-    responses = conection.simGetImages([airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)])
-
-    # Extract image
-    img1d = np.frombuffer(responses[0].image_data_uint8, dtype=np.uint8)
-    img_rgb = img1d.reshape(responses[0].height, responses[0].width, 3)
-    
-    # Save image to disk
-    cv2.imwrite('drone_image.png', img_rgb)
-
-    # Obtener la imagen de la respuesta
-    image_response = responses[0]
-    image_bytes = image_response.image_data_uint8
-    
-    # Convertir los bytes de la imagen a un objeto Image de Pillow
-    image = Image.frombytes("RGB", (image_response.width, image_response.height), image_bytes)
-
-    return image
-
-
-def capture_image_from_airsim_black_and_white():
-    
-    response = conection.simGetImages([airsim.ImageRequest("0", airsim.ImageType.DepthPerspective, True, False)])
-    image = response[0]
-
-    depth_img_in_meters = airsim.list_to_2d_float_array(image.image_data_float, image.width, image.height)
-    depth_img_in_meters = depth_img_in_meters.reshape(image.height, image.width, 1)
-
-    # depth_8bit_lerped = np.interp(depth_img_in_meters, (MIN_DEPTH_METERS, MAX_DEPTH_METERS), (0, 255))
-    depth_img_in_millimeters = depth_img_in_meters * 1000
-    depth_16bit = np.clip(depth_img_in_millimeters, 0, 65535)
-
-    cv2.imwrite("depth_16bit.png", depth_16bit.astype(np.uint16))
-
-    # Convert bytes to Pillow Image object
-    # image = Image.frombytes("L", (image.width, image.height), image.image_data_uint8)
-
-    # return image
-
-# Función para convertir la imagen de AirSim a un formato compatible con Vision
-def convert_image_for_vision(image):
-    image_vision_format = image.convert("RGB")  # RGB es el formato que usa AirSim
-    
-    return image_vision_format
-
-
-def visionSee():
-    image_from_airsim = capture_image_from_airsim()
-    image_from_airsim_bw = capture_image_from_airsim_black_and_white()
-
-    image_vision_format = convert_image_for_vision(image_from_airsim)
-
-    # Obtener la imagen en base64 desde la imagen convertida png
-    buffer = io.BytesIO()
-    image_vision_format.save(buffer, format="PNG")
-    base64_image = base64.b64encode(buffer.getvalue()).decode()
-
-    # Configuración de los headers para la solicitud a la API de OpenAI
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {client.api_key}"
-    }
-
-    payload = {
-        "model": "gpt-4-vision-preview",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "En la imagen que vez tienes algun objeto cerca de ti? solo en el centro de la imagen -importante: solo puedes responder con ('si' o 'no')"
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{base64_image}"
-                        }
-                    }
-                ]
-            }
-        ],
-        "max_tokens": 5
-    }
-
-    # # Configuración del payload para la solicitud a la API de OpenAI
-    # payload = {
-    #     "model": "gpt-4-vision-preview",
-    #     "messages": payload,
-    #     "max_tokens": 50
-    # }
-
-    # Realizar la solicitud a la API de OpenAI
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-
-    print(response.json())
-
-    response = response.json()
-
-    return response
-
-
-# Función para enviar una solicitud a la API de OpenAI para pruebas de visión
-def visionTest():
-    image_from_airsim = capture_image_from_airsim()
-    image_from_airsim_bw = capture_image_from_airsim_black_and_white()
-
-    image_vision_format = convert_image_for_vision(image_from_airsim)
-    # image_from_airsim_bw_vision_format = convert_image_for_vision(image_from_airsim_bw)
-
-    # Obtener la imagen en base64 desde la imagen convertida png
-    buffer = io.BytesIO()
-    image_vision_format.save(buffer, format="PNG")
-    base64_image = base64.b64encode(buffer.getvalue()).decode()
-
-    # image_from_airsim_bw.save(buffer, format="PNG")
-    # base64_image_bw = base64.b64encode(buffer.getvalue()).decode()
-
-     # Configuración del payload para la solicitud a la API de OpenAI
-    payload = {
-        "model": "gpt-4-vision-preview",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? -solo puedes responder con no moverse o si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que no choques"
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{base64_image}"
-                        }
-                    }
-                ]
-            }
-        ],
-        "max_tokens": 10
-    }
-
-    # Configuración de los headers para la solicitud a la API de OpenAI
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {client.api_key}"
-    }
-
-
-    # Realizar la solicitud a la API de OpenAI
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-
-    print(response.json())
-
-    response = response.json()
-
-    # Guardar la respuesta a la conversacion
-    conversation.append({
-                "role": "assistant",
-                "content": response['choices'][0]['message']['content']
-            })
-
-    return response
 
 
 # =============== CHAT GPT ===================
@@ -605,13 +422,6 @@ while True:
             print('old coordinates:', old_coordinates[1])
             print('old coordinates:', old_coordinates[2])
 
-            # test = visionSee()
-            # print('respuesta de vision 1', test['choices'][0]['message']['content'])
-            # response = test['choices'][0]['message']['content']
-
-            # if response == 'No.':
-
-            # if response == ''Si.
 
             if new_coordinates[0] > old_coordinates[0]:
                 if new_coordinates[1] > old_coordinates[1]:
@@ -673,83 +483,41 @@ while True:
             print('old coordinates:', old_coordinates[1])
             print('old coordinates:', old_coordinates[2])
 
-            test = visionSee()
-            print('respuesta de vision 1', test['choices'][0]['message']['content'])
-            response = test['choices'][0]['message']['content']
-
-            if response == 'No.' or response == 'No':
-                if new_coordinates[0] > old_coordinates[0]:
-                    if new_coordinates[1] > old_coordinates[1]:
-                        movement_north_east(old_coordinates_temp)
-
-                    elif new_coordinates[1] < old_coordinates[1]:
-                        movement_north_west(old_coordinates_temp)
-                    else:
-                        movement_north(old_coordinates_temp)
-
             
-                elif new_coordinates[0] < old_coordinates[0]:
-                    if new_coordinates[1] > old_coordinates[1]:
-                        movement_south_east(old_coordinates_temp)
-                        
-                    elif new_coordinates[1] < old_coordinates[1]:
-                        movement_south_west(old_coordinates_temp)     
-                    else:
-                        movement_south(old_coordinates_temp)
-                        
-                elif new_coordinates[0] == old_coordinates[0]:
-                    if new_coordinates[1] > old_coordinates[1]:
-                        movement_east(old_coordinates_temp)
-                        
-                    elif new_coordinates[1] < old_coordinates[1]:
-                        movement_west(old_coordinates_temp)
+            if new_coordinates[0] > old_coordinates[0]:
+                if new_coordinates[1] > old_coordinates[1]:
+                    movement_north_east(old_coordinates_temp)
+
+                elif new_coordinates[1] < old_coordinates[1]:
+                    movement_north_west(old_coordinates_temp)
+                else:
+                    movement_north(old_coordinates_temp)
+
+        
+            elif new_coordinates[0] < old_coordinates[0]:
+                if new_coordinates[1] > old_coordinates[1]:
+                    movement_south_east(old_coordinates_temp)
                     
-
-                # Movimiento en Z
-                if new_coordinates[2] > old_coordinates[2]:
-                    print("Movimiento hacia arriba")
-                    movement_up(old_coordinates_temp)
-                elif new_coordinates[2] < old_coordinates[2]:
-                    print("Movimiento hacia abajo")
-                    movement_down(old_coordinates_temp)
-
-
-            # encontro un objeto
-            else:
-                if new_coordinates[0] > old_coordinates[0]:
-                    if new_coordinates[1] > old_coordinates[1]:
-                        movement_north(old_coordinates_temp)
-
-                    elif new_coordinates[1] < old_coordinates[1]:
-                        movement_north(old_coordinates_temp)
-                    else:
-                        movement_north_west(old_coordinates_temp)
-
+                elif new_coordinates[1] < old_coordinates[1]:
+                    movement_south_west(old_coordinates_temp)     
+                else:
+                    movement_south(old_coordinates_temp)
+                    
+            elif new_coordinates[0] == old_coordinates[0]:
+                if new_coordinates[1] > old_coordinates[1]:
+                    movement_east(old_coordinates_temp)
+                    
+                elif new_coordinates[1] < old_coordinates[1]:
+                    movement_west(old_coordinates_temp)
                 
-                elif new_coordinates[0] < old_coordinates[0]:
-                    if new_coordinates[1] > old_coordinates[1]:
-                        movement_south(old_coordinates_temp)
-                        
-                    elif new_coordinates[1] < old_coordinates[1]:
-                        movement_south(old_coordinates_temp)     
-                    else:
-                        movement_south_west(old_coordinates_temp)
-                        
-                elif new_coordinates[0] == old_coordinates[0]:
-                    if new_coordinates[1] > old_coordinates[1]:
-                        movement_north_east(old_coordinates_temp)
-                        
-                    elif new_coordinates[1] < old_coordinates[1]:
-                        movement_north_west(old_coordinates_temp)
-                    
 
-                # Movimiento en Z
-                if new_coordinates[2] > old_coordinates[2]:
-                    print("Movimiento hacia arriba")
-                    movement_up(old_coordinates_temp)
-                elif new_coordinates[2] < old_coordinates[2]:
-                    print("Movimiento hacia abajo")
-                    movement_down(old_coordinates_temp)
+            # Movimiento en Z
+            if new_coordinates[2] > old_coordinates[2]:
+                print("Movimiento hacia arriba")
+                movement_up(old_coordinates_temp)
+            elif new_coordinates[2] < old_coordinates[2]:
+                print("Movimiento hacia abajo")
+                movement_down(old_coordinates_temp)
             
 
             # Actualizar old_coordinates al final de la iteración
