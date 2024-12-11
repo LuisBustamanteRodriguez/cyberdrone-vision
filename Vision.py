@@ -14,7 +14,7 @@ import io
 from airsim_wrapper import *
 
 # Clave de la API de OpenAI
-api_key = 'API_KEY'
+api_key = 'api_key'
 
 # Inicializar cliente de OpenAI
 client = openai.OpenAI(api_key=api_key)

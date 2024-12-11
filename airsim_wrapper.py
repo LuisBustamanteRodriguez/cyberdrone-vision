@@ -1,16 +1,16 @@
 import airsim
 import numpy as np
 import cv2
-from ultralytics import YOLO
 
-class ObjectDetector:
-    def __init__(self):
-        self.model = YOLO("yolov8l.pt")
-        self.model.conf = 0.5
 
-    def detect_objects(self, image):
-        results = self.model(image)
-        return results
+# class ObjectDetector:
+#     def __init__(self):
+#         self.model = YOLO("yolov8l.pt")
+#         self.model.conf = 0.5
+
+    # def detect_objects(self, image):
+    #     results = self.model(image)
+    #     return results
 
 class AirSimWrapper:
     def __init__(self):
@@ -18,7 +18,7 @@ class AirSimWrapper:
         self.client.confirmConnection()
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
-        self.object_detector = ObjectDetector()
+    
 
     def takeoff(self):
         self.client.takeoffAsync().join()

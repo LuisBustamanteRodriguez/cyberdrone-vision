@@ -12,9 +12,10 @@ from PIL import Image
 import airsim
 import io
 from airsim_wrapper import *
+import json
 
 # Clave de la API de OpenAI
-client = openai.OpenAI(api_key='API_KEY')
+client = openai.OpenAI(api_key='api_key')
 
 # Analizador de argumentos
 parser = argparse.ArgumentParser()
@@ -34,21 +35,9 @@ openai.api_key = config["OPENAI_API_KEY"]
 with open(args.sysprompt, "r") as f:
     sysprompt = f.read()
 
-# Historial de chat inicial
-chat_history = [
-    {
-        "role": "system",
-        "content": sysprompt
-    },
-    {
-        "role": "user",
-        "content": "move 10 units up"
-    }
-]
 
-# Lista para almacenar las coordenadas guardadas
-saved_coordinates = []
-
+   # =============== VISION ===================
+    
 # Función para capturar una imagen desde AirSim
 def capture_image_from_airsim():
     # Conectar con el cliente de AirSim
@@ -57,6 +46,7 @@ def capture_image_from_airsim():
 
     # Capturar una imagen utilizando la cámara frontal
     responses = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)])
+
     # Obtener la imagen de la respuesta
     image_response = responses[0]
     image_bytes = image_response.image_data_uint8
@@ -68,17 +58,14 @@ def capture_image_from_airsim():
 
 # Función para convertir la imagen de AirSim a un formato compatible con Vision
 def convert_image_for_vision(image):
-    # Convertir la imagen al formato deseado
     image_vision_format = image.convert("RGB")  # RGB es el formato que usa AirSim
     
     return image_vision_format
 
 # Función para enviar una solicitud a la API de OpenAI para pruebas de visión
 def visionTest():
-    # Llamar a la función para capturar la imagen desde AirSim
     image_from_airsim = capture_image_from_airsim()
 
-    # Llamar a la función para convertir la imagen al formato compatible con Vision
     image_vision_format = convert_image_for_vision(image_from_airsim)
 
     # Obtener la imagen en base64 desde la imagen convertida png
@@ -101,7 +88,7 @@ def visionTest():
                 "content": [
                     {
                         "type": "text",
-                        "text": "What’s in this image?"
+                        "text": "Dependiendo de lo que vez en la imagen hacia donde te moverias para intentar no chocar? -solo puedes responder con no moverse o si vez algo muy cerca responde con arriba, abajo, izquierda, derecha para que no choques"
                     },
                     {
                         "type": "image_url",
@@ -112,35 +99,41 @@ def visionTest():
                 ]
             }
         ],
-        "max_tokens": 300
+        "max_tokens": 50
     }
 
     # Realizar la solicitud a la API de OpenAI
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
-    # Imprimir la respuesta JSON de la API de OpenAI
     print(response.json())
 
-# Función para mover el dron a coordenadas específicas
-def move_to_coordinates(coord_x, coord_y, coord_z):
-    # Mover el dron a las coordenadas especificadas
-    print(f"Moving the drone to coordinates: ({coord_x}, {coord_y}, {coord_z})")
+    return response.json()
 
-# Función para hacer que el dron siga un circuito basado en una serie de coordenadas
-def seguir_circuito(coordenadas):
-    print("Following the coordinate circuit:")
-    for coordenada in coordenadas:
-        move_to_coordinates(coordenada[0], coordenada[1], coordenada[2])
 
-# Función para guardar coordenadas
-def guardar_coordenadas(coord_x, coord_y, coord_z):
-    saved_coordinates.append((coord_x, coord_y, coord_z))
-    print(f"Saved coordinates: ({coord_x}, {coord_y}, {coord_z})")
-
-# Función para iniciar el seguimiento de un circuito
-def iniciar_seguimiento_circuito():
-    print("Starting the circuit with the saved coordinates...")
-    seguir_circuito(saved_coordinates)
+# =============== CHAT GPT ===================
+    
+# Historial de chat inicial
+chat_history = [
+    {
+        "role": "system",
+        "content": sysprompt
+    },
+    {
+        "role": "user",
+        "content": "move 10 units up"
+    },
+    {
+        "role": "assistant",
+        "content": """```python
+        new_coords = [
+            min(current_position[0], 30),
+            min(current_position[1], 30),
+            min(current_position[2] + 10, 30)
+        ]
+        aw.fly_to(new_coords)
+        ```"""
+    }
+]
 
 # Función para enviar una solicitud al modelo de lenguaje GPT-3.5
 def ask(prompt):
@@ -163,6 +156,10 @@ def ask(prompt):
     )
     return chat_history[-1]["content"]
 
+
+'''
+//////////////////////////////////////////////////
+'''
 print(f"Done.")
 
 code_block_regex = re.compile(r"```(.*?)```", re.DOTALL)
@@ -179,6 +176,7 @@ def extract_python_code(content):
     else:
         return None
 
+
 print(f"Initializing AirSim...")
 aw = AirSimWrapper()
 print(f"Done.")
@@ -191,14 +189,15 @@ print("Welcome to the AirSim chatbot! I am ready to help you with your AirSim qu
 
 while True:
     question = input("AirSim> ")
-
+    
     if question == "!quit" or question == "!exit":
         break
+
 
     if question == "!clear":
         os.system("cls")
         continue
-
+    
     response = ask(question)
     visionTest()
 
@@ -210,5 +209,131 @@ while True:
         exec(extract_python_code(response))
         print("Done!\n")
 
-    if question == "!start_circuit_tracking":
-        iniciar_seguimiento_circuito()
+
+
+    # # Coordenadas especificadas inicialmente
+    # specified_coordinates = ('AirSim> !move 5, 5, 2')
+        
+    # Coordenadas especificadas inicialmente
+    specified_coordinates = [5, 5, 2]
+
+    # aw.fly_to(specified_coordinates)
+    
+    # Coordenadas iniciales
+    coordinates = [0, 0, 0]
+
+    # # Convertir las coordenadas especificadas a cadenas
+    # move_command = ('AirSim> !move', str(specified_coordinates[0]), str(specified_coordinates[1]), str(specified_coordinates[2]))
+
+    # # Concatenar los elementos de la tupla en una cadena
+    # move_command_str = ' '.join(str(item) for item in move_command)
+
+    # # Imprimir la variable move_command_str
+    # print(move_command_str)
+
+    # Bucle while para iterar hasta que todas las coordenadas sean iguales o superiores a specified_coordinates
+    while coordinates[0] < specified_coordinates[0] or coordinates[1] < specified_coordinates[1] or coordinates[2] < specified_coordinates[2]:
+        
+        if coordinates[0] != specified_coordinates[0]: # x
+            coordinates[0] += 1
+
+            aw.fly_to(coordinates)
+            print('aw.fly_to(coordinates)')
+            print(coordinates)
+            response = visionTest()
+
+            print('respuesta de vision 1', response['choices'][0]['message']['content'])
+            
+            time.sleep(15)
+            
+            # # Convertir las coordenadas especificadas a cadenas
+            # move_command = ('AirSim> !move', str(coordinates[0]), str(coordinates[1]), str(coordinates[2]))
+            # # Concatenar los elementos de la tupla en una cadena
+            # move_command_str = ' '.join(str(item) for item in move_command)
+
+            # response = ask(move_command_str)
+
+            # print(f"\n{response}\n")
+
+            # code = extract_python_code(response)
+            # if code is not None:
+            #     print("Please wait while I run the code in AirSim...")
+            #     exec(extract_python_code(response))
+            #     print("Done!\n")
+
+        
+        if coordinates[1] != specified_coordinates[1]: # y
+            coordinates[1] += 1
+
+            aw.fly_to(coordinates)
+            print('aw.fly_to(coordinates)')
+            print(coordinates)
+            response = visionTest()
+            
+            print('respuesta de vision 2', response['choices'][0]['message']['content'])
+            
+            time.sleep(15)
+
+            # # Convertir las coordenadas especificadas a cadenas
+            # move_command = ('AirSim> !move', str(coordinates[0]), str(coordinates[1]), str(coordinates[2]))
+            # # Concatenar los elementos de la tupla en una cadena
+            # move_command_str = ' '.join(str(item) for item in move_command)
+
+            # response = ask(move_command_str)
+
+            # print(f"\n{response}\n")
+
+            # code = extract_python_code(response)
+            # if code is not None:
+            #     print("Please wait while I run the code in AirSim...")
+            #     exec(extract_python_code(response))
+            #     print("Done!\n")
+
+
+        if coordinates[2] != specified_coordinates[2]: # z
+            coordinates[2] += 1
+
+            aw.fly_to(coordinates)
+            print('aw.fly_to(coordinates)')
+            print(coordinates)
+            response = visionTest()
+
+            print('respuesta de vision 3', response['choices'][0]['message']['content'])
+
+            time.sleep(15)
+
+            # # Convertir las coordenadas especificadas a cadenas
+            # move_command = ('AirSim> !move', str(coordinates[0]), str(coordinates[1]), str(coordinates[2]))
+            # # Concatenar los elementos de la tupla en una cadena
+            # move_command_str = ' '.join(str(item) for item in move_command)
+
+            # response = ask(move_command_str)
+
+            # print(f"\n{response}\n")
+
+            # code = extract_python_code(response)
+            # if code is not None:
+            #     print("Please wait while I run the code in AirSim...")
+            #     exec(extract_python_code(response))
+            #     print("Done!\n")
+
+
+        # Imprimir las coordenadas después de cada iteración
+        print(coordinates)
+
+    # Imprimir las coordenadas finales
+    print("Las coordenadas finales son:", coordinates)
+
+
+
+
+    # # # Utilizar las nuevas coordenadas en lugar de 'question' al llamar a la función ask
+    # response = ask(move_command_str)
+
+    # print(f"\n{response}\n")
+
+    # code = extract_python_code(response)
+    # if code is not None:
+    #     print("Please wait while I run the code in AirSim...")
+    #     exec(extract_python_code(response))
+    #     print("Done!\n")

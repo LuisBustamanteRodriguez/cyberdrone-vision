@@ -1,0 +1,158 @@
+
+while True:
+    
+    # Coordenadas especificadas inicialmente
+    specified_coordinates = [5, 5, 2]
+
+    # calculate coordenates
+    coordinates_math = specified_coordinates
+    
+    # Coordenadas iniciales
+    coordinates = [0, 0, 2]
+
+    pila = []
+
+    # Bucle while para iterar hasta que todas las coordenadas sean iguales o superiores a specified_coordinates
+    while coordinates[0] < specified_coordinates[0] or coordinates[1] < specified_coordinates[1] or coordinates[2] < specified_coordinates[2]:
+        
+        if coordinates[0] != specified_coordinates[0] and specified_coordinates[0] != coordinates_math[0]:
+
+            # Adelante ////////////////////////
+            if specified_coordinates[0] > 0:
+                # test = visionSee()
+                # print('respuesta de vision 1', test['choices'][0]['message']['content'])
+                # response = test['choices'][0]['message']['content']
+
+                # if response == 'No.':
+                #     coordinates[0] += 3
+
+                #     coordinates_math [0] -= 3
+
+                #     aw.fly_to(coordinates)
+                #     print("Nuevas coordenadas:", coordinates)
+
+                # else:
+                #     break
+
+                if coordinates_math[0] >= 0 and coordinates_math[1] <= 0:
+
+                    if specified_coordinates[0] != 0 and specified_coordinates[1] != 0:
+                        coordinates[0] -= 1
+                        coordinates[1] -= 1
+
+                        coordinates_math [0] -= 1
+                        coordinates_math [1] += 1
+
+                
+                if coordinates_math[0] >= 0 and coordinates_math[1] >= 0:
+                    if specified_coordinates[0] != 0 and specified_coordinates[1] != 0:
+                        coordinates[0] += 1
+                        coordinates[1] += 1
+
+                        coordinates_math [0] -= 1
+                        coordinates_math [1] -= 1
+
+        
+            # Atras //////////////////////////
+            if specified_coordinates[0] <= 0:
+                coordinates[0] -= 1
+
+                # test = visionSee()
+                # print('respuesta de vision 1', test['choices'][0]['message']['content'])
+                # response = test['choices'][0]['message']['content']
+
+                # if response == 'No.':
+                #     coordinates[0] -= 3
+
+                #     coordinates_math [0] += 3
+
+                #     aw.fly_to(coordinates)
+                #     print("Nuevas coordenadas:", coordinates)
+
+                if coordinates_math[0] <= 0 and coordinates_math[1] <= 0:
+
+                    if specified_coordinates[0] != 0 and specified_coordinates[1] != 0:
+                        coordinates[0] -= 3
+                        coordinates[1] -= 3
+
+                        coordinates_math [0] += 3
+                        coordinates_math [1] += 3
+
+                
+                if coordinates_math[0] <= 0 and coordinates_math[1] >= 0:
+                    if specified_coordinates[0] != 0 and specified_coordinates[1] != 0:
+                        coordinates[0] -= 3
+                        coordinates[1] += 3
+
+                        coordinates_math [0] += 3
+                        coordinates_math [1] -= 3
+
+        
+        # /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        if coordinates[1] != specified_coordinates[1] and specified_coordinates[1] != coordinates_math[1]:
+
+
+            if specified_coordinates[1] >= 0:
+                coordinates[1] += 1
+
+                # test = visionSee()
+                # print('respuesta de vision 1', test['choices'][0]['message']['content'])
+                # response = test['choices'][0]['message']['content']
+
+                # if response == 'No.':
+                #     coordinates[1] += 1
+
+                #     coordinates_math [1] += 1
+
+                #     aw.fly_to(coordinates)
+                #     print("Nuevas coordenadas:", coordinates)
+
+            
+            if specified_coordinates[1] < 0:
+                coordinates[1] -= 1
+
+                # test = visionSee()
+                # print('respuesta de vision 1', test['choices'][0]['message']['content'])
+                # response = test['choices'][0]['message']['content']
+
+                # if response == 'No.':
+                #     coordinates[1] += 1
+
+                #     coordinates_math [1] -= 1
+
+                #     aw.fly_to(coordinates)
+                #     print("Nuevas coordenadas:", coordinates)
+
+
+        if coordinates[2] != specified_coordinates[2] and specified_coordinates[2] != coordinates_math[2]:
+            
+            if specified_coordinates[2] >= 0:
+                coordinates[2] += 1
+
+                # test = visionSee()
+                # print('respuesta de vision 1', test['choices'][0]['message']['content'])
+                # response = test['choices'][0]['message']['content']
+
+                # if response == 'No.':
+                #     coordinates[2] += 1
+
+                #     coordinates_math [2] += 1
+
+                #     aw.fly_to(coordinates)
+                #     print("Nuevas coordenadas:", coordinates)
+
+            if specified_coordinates[2] < 0:
+                coordinates[2] -= 1
+
+                # test = visionSee()
+                # print('respuesta de vision 1', test['choices'][0]['message']['content'])
+                # response = test['choices'][0]['message']['content']
+
+                # if response == 'No.':
+                #     coordinates[2] -= 1
+
+                #     coordinates_math [2] -= 1
+
+                #     aw.fly_to(coordinates)
+                #     print("Nuevas coordenadas:", coordinates)
